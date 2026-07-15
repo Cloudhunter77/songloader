@@ -30,6 +30,7 @@ python songloader.py "<playlist_url>" [options]
 | `--end` | (all) | Playlist index to stop at (inclusive) |
 | `-w, --workers` | `4` | Concurrent fragment downloads per video |
 | `-v, --verbose` | off | Show yt-dlp's normal logging output |
+| `--cookies-from-browser` | none | Browser to read cookies from (`chrome`, `firefox`, `edge`, `brave`, `opera`, `vivaldi`, `safari`) — authenticates as a logged-in user, which often fixes intermittent 403 errors |
 
 ### Examples
 
@@ -67,4 +68,15 @@ Each file has title/uploader metadata and the video thumbnail embedded as cover 
 ## Notes
 
 - Re-running the tool against the same playlist re-downloads everything currently in it (no skip/archive tracking) — safe to re-run, just expect duplicates if files already exist unless you clear the output directory first.
-- Individual video failures (removed/private videos, etc.) don't stop the rest of the playlist; failures are summarized at the end and the tool exits non-zero if any occurred.
+- Each track downloads independently: if one fails (removed/private video, transient network error, HTTP 403, etc.) the tool logs it and moves on to the next track instead of aborting the whole run. Failures are summarized at the end and the tool exits non-zero if any occurred.
+
+## Troubleshooting
+
+**`HTTP Error 403: Forbidden` on some tracks, or a `No supported JavaScript runtime` warning**
+
+This is YouTube's anti-bot system, not a bug in the tool — it happens sporadically and gets worse over time as YouTube tightens things. Try, roughly in order of effort:
+
+1. **Update yt-dlp** — this fight moves fast and old versions break first: `pip install -U yt-dlp`
+2. **Use `--cookies-from-browser <browser>`** — log into YouTube in that browser first, then pass its name (e.g. `--cookies-from-browser chrome`). Authenticated requests get throttled far less than anonymous ones and this fixes most persistent 403s.
+3. **Install a JS runtime** (e.g. [Deno](https://deno.land)) so yt-dlp can execute YouTube's signature-deciphering JavaScript itself instead of falling back to a client that YouTube may throttle harder.
+4. If only a handful of tracks fail, just re-run the tool later with `--start`/`--end` targeting those specific indices — 403s are often transient.
