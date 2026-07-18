@@ -5,7 +5,9 @@ Usage:
     python songloader.py <playlist_url> [options]
 """
 import argparse
+import os
 import sys
+from pathlib import Path
 
 import yt_dlp
 from yt_dlp.utils import sanitize_filename
@@ -19,8 +21,28 @@ def cookie_opts(args: argparse.Namespace) -> dict:
     return {"cookiesfrombrowser": (args.cookies_from_browser, None, None, None)}
 
 
+def parse_url_list_file(path: str):
+    """Read a text file of '<url>[TAB title]' lines, e.g. produced by spotify_to_youtube.py."""
+    entries = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            url, _, title = line.partition("\t")
+            entries.append({"url": url, "title": title or url})
+    return entries
+
+
 def list_entries(playlist_url: str, args: argparse.Namespace):
-    """Resolve the playlist (or single video) into a title + flat entry list, without downloading."""
+    """Resolve the playlist (or single video, or local url-list file) into a title + entry list."""
+    if os.path.isfile(playlist_url):
+        title = sanitize_filename(Path(playlist_url).stem, restricted=True)
+        entries = parse_url_list_file(playlist_url)
+        start = max(args.start, 1)
+        end = args.end if args.end is not None else len(entries)
+        return title, entries[start - 1:end]
+
     list_opts = {
         "extract_flat": "in_playlist",
         "quiet": not args.verbose,
@@ -79,7 +101,11 @@ def build_ydl_opts(args: argparse.Namespace, playlist_title: str) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("playlist_url", help="YouTube playlist URL")
+    parser.add_argument(
+        "playlist_url",
+        help="YouTube playlist URL, a single video URL, or a local .txt file of "
+        "'<url>[TAB title]' lines (e.g. from spotify_to_youtube.py)",
+    )
     parser.add_argument(
         "-o", "--output-dir", default="downloads", help="Root directory for downloads (default: downloads)"
     )

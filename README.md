@@ -1,6 +1,7 @@
 # songloader
 
 Download every track in a YouTube playlist as audio files, automatically.
+Also converts a Spotify playlist into a matched list of YouTube tracks first, if that's where your songs live.
 
 ## Requirements
 
@@ -69,6 +70,32 @@ Each file has title/uploader metadata and the video thumbnail embedded as cover 
 
 - Re-running the tool against the same playlist re-downloads everything currently in it (no skip/archive tracking) — safe to re-run, just expect duplicates if files already exist unless you clear the output directory first.
 - Each track downloads independently: if one fails (removed/private video, transient network error, HTTP 403, etc.) the tool logs it and moves on to the next track instead of aborting the whole run. Failures are summarized at the end and the tool exits non-zero if any occurred.
+
+## Spotify playlists
+
+`songloader.py` only understands YouTube. If your songs are collected in a **Spotify** playlist instead, use `spotify_to_youtube.py` first to match each track to a YouTube video, then feed the result into `songloader.py`.
+
+### One-time setup
+
+Create a free Spotify API app (read-only, no user login needed) at https://developer.spotify.com/dashboard → "Create app" → any name/redirect URI works, you just need the **Client ID** and **Client Secret** it gives you. Then either export them:
+
+```bash
+export SPOTIFY_CLIENT_ID=...
+export SPOTIFY_CLIENT_SECRET=...
+```
+
+or pass `--client-id`/`--client-secret` on each run.
+
+### Usage
+
+```bash
+python spotify_to_youtube.py "https://open.spotify.com/playlist/..." -o tracks.txt
+python songloader.py tracks.txt -f flac
+```
+
+The playlist must be **public** (anyone-with-the-link, not private/collaborative-only). The first command reads the track list via Spotify's Web API, searches YouTube for each `<artist> - <title>` via yt-dlp, and writes matched `<youtube_url><TAB><artist - title>` lines to `tracks.txt`. The second command downloads them exactly like a normal playlist — `songloader.py` treats an existing local file path as a list of tracks to fetch instead of a YouTube URL.
+
+Matching is a best-effort YouTube search per track — always worth skimming the printed `-> <matched title>` lines (or the output file) for any suspicious mismatches (wrong remix, live version, etc.) before bulk-downloading.
 
 ## Troubleshooting
 
